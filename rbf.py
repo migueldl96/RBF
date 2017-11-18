@@ -9,7 +9,10 @@ Created on Wed Oct 28 12:37:04 2016
 import numpy as np
 import pandas as pd
 import click
+import random
 
+from sklearn.cluster import KMeans
+from sklearn.model_selection import StratifiedShuffleSplit
 
 @click.command()
 @click.option('--train_file', '-t', default=None, required=True,
@@ -84,9 +87,11 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta):
     train_inputs, train_outputs, test_inputs, test_outputs = lectura_datos(train_file, 
                                                                            test_file)
 
-    #TODO: Obtener num_rbf a partir de ratio_rbf
+    #Número de RBFs
+    num_rbf = int(ratio_rbf * train_outputs.shape[0])
     print("Número de RBFs utilizadas: %d" %(num_rbf))
-    kmedias, distancias, centros = clustering(classification, train_inputs, 
+
+    kmedias, distancias, centros = clustering(classification, train_inputs,
                                               train_outputs, num_rbf)
     
     radios = calcular_radios(centros, num_rbf)
@@ -166,7 +171,12 @@ def inicializar_centroides_clas(train_inputs, train_outputs, num_rbf):
                           (num_rbf x num_entradas).
     """
     
-    #TODO: Completar el código de la función
+    # Particiones estratificadas de num_rbf/clases elementos
+    stratified_split = StratifiedShuffleSplit(n_splits=1, train_size=num_rbf, test_size=None)
+    splits = stratified_split.split(train_inputs, train_outputs)
+    indices = list(splits)[0][0]
+    centroides = train_inputs[indices]
+
     return centroides
 
 def clustering(clasificacion, train_inputs, train_outputs, num_rbf):
@@ -188,7 +198,20 @@ def clustering(clasificacion, train_inputs, train_outputs, num_rbf):
               obtenidos tras el proceso de clustering.
     """
 
-    #TODO: Completar el código de la función
+    # Centroides de las RBFs
+    if clasificacion:
+      centros = inicializar_centroides_clas(train_inputs, train_outputs, num_rbf)
+    else:
+      patrones = train_inputs.shape[0]
+      random_rows = np.random.randint(low=0, high=patrones, size=num_rbf)
+      centros = train_inputs[random_rows]
+
+    # Modelo
+    kmedias = KMeans(n_clusters=num_rbf, init=centros, n_init=1, max_iter=500)
+
+    #Matriz de distancias
+    distancias = kmedias.fit_transform(train_inputs)
+
     return kmedias, distancias, centros
 
 def calcular_radios(centros, num_rbf):
