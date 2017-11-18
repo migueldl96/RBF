@@ -6,13 +6,24 @@ Created on Wed Oct 28 12:37:04 2016
 @author: pagutierrez
 """
 
-# TODO Incluir todos los import necesarios
+import numpy as np
+import pandas as pd
+import click
 
 
 @click.command()
 @click.option('--train_file', '-t', default=None, required=True,
               help=u'Fichero con los datos de entrenamiento.')
-# TODO incluir el resto de parámetros...
+@click.option('--test_file', '-T', default=None, required=False,
+              help=u'Fichero con los datos de test. Si no se especifica, se usa el fichero de train.')
+@click.option('--classification', '-c', default=False, required=False,
+              help=u'Utilizar si se trata de un problema de clasificación. Por defecto, se asume regresión.')
+@click.option('--ratio_rbf', '-r', default=0.1, required=False,
+              help=u'Porcentaje de RBFs con respecto a los patrones de entrenamiento. Por defecto, 0.1')
+@click.option('--l2', '-l', default=False, required=False,
+              help=u'Utilizar regularización l2. Por defecto se utiliza l1.')
+@click.option('--eta', '-e', default=0.01, required=False,
+              help=u'Tasa de aprendizaje. Por defecto, 0.01')
 def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta):
     """ Modelo de aprendizaje supervisado mediante red neuronal de tipo RBF.
         Ejecución de 5 semillas.
@@ -124,6 +135,8 @@ def lectura_datos(fichero_train, fichero_test):
     """
 
     #TODO: Completar el código de la función
+
+
     return train_inputs, train_outputs, test_inputs, test_outputs
 
 def inicializar_centroides_clas(train_inputs, train_outputs, num_rbf):
