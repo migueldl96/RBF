@@ -134,8 +134,21 @@ def lectura_datos(fichero_train, fichero_test):
               test.
     """
 
-    #TODO: Completar el código de la función
+    # Leemos los CSV
+    train_dataset = pd.read_csv(fichero_train)
 
+    # Si no se especifica fichero de test, se utiliza el de train
+    if not fichero_test:
+      test_dataset  = train_dataset
+    else:
+      test_dataset = pd.read_csv(fichero_test)
+
+    # Separamos las entradas y salidas de entrenamiento y test
+    train_inputs  = train_dataset.values[:,0:-1]
+    train_outputs = train_dataset.values[:,-1]
+
+    test_inputs  = test_dataset.values[:,0:-1]
+    test_outputs = test_dataset.values[:,-1]
 
     return train_inputs, train_outputs, test_inputs, test_outputs
 
