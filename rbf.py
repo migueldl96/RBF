@@ -291,7 +291,17 @@ def logreg_clasificacion(matriz_r, train_outputs, eta, l2):
               entrenado.
     """
 
-    #TODO: Completar el código de la función
+    # Regularización
+    if l2:
+      regularizacion = 'l2'
+    else:
+      regularizacion = 'l1'
+
+    c = 1/eta
+
+    lr = LogisticRegression(penalty=regularizacion, C=c, fit_intercept=False)
+    logreg = lr.fit(matriz_r, train_outputs)
+
     return logreg
 
 
