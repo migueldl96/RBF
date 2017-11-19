@@ -13,6 +13,7 @@ import random
 
 from sklearn.cluster import KMeans
 from sklearn.model_selection import StratifiedShuffleSplit
+from sklearn.metrics.pairwise import pairwise_distances
 
 @click.command()
 @click.option('--train_file', '-t', default=None, required=True,
@@ -223,7 +224,12 @@ def calcular_radios(centros, num_rbf):
             - radios: vector (num_rbf) con el radio de cada RBF.
     """
 
-    #TODO: Completar el código de la función
+    # Matriz de distancias
+    distancias = pairwise_distances(centros, Y=None, metric="euclidean", n_jobs=1)
+
+    # Radios = suma de filas / 2 * num_rbf-1
+    radios = distancias.sum(axis=1)/(2 * (num_rbf-1))
+
     return radios
 
 def calcular_matriz_r(distancias, radios):
