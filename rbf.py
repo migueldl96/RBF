@@ -14,6 +14,7 @@ import random
 from sklearn.cluster import KMeans
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics.pairwise import pairwise_distances
+from sklearn.linear_model import LogisticRegression
 
 @click.command()
 @click.option('--train_file', '-t', default=None, required=True,
@@ -246,7 +247,8 @@ def calcular_matriz_r(distancias, radios):
               valores a 1, que actuará como sesgo.
     """
 
-    #TODO: Completar el código de la función
+    # Salida = exp(-distancia^2/2*radio^2) - [0,1]
+    matriz_r = np.exp(-np.square(distancias)/(np.square(radios)*2))
     return matriz_r
 
 def invertir_matriz_regresion(matriz_r, train_outputs):
