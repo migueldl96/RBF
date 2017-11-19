@@ -248,7 +248,10 @@ def calcular_matriz_r(distancias, radios):
     """
 
     # Salida = exp(-distancia^2/2*radio^2) - [0,1]
+    sesgo = np.ones(distancias.shape[0])
     matriz_r = np.exp(-np.square(distancias)/(np.square(radios)*2))
+    matriz_r = np.column_stack((matriz_r, sesgo))
+
     return matriz_r
 
 def invertir_matriz_regresion(matriz_r, train_outputs):
