@@ -15,6 +15,7 @@ from sklearn.cluster import KMeans
 from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.linear_model import LogisticRegression
+from sklearn.preprocessing import label_binarize
 
 @click.command()
 @click.option('--train_file', '-t', default=None, required=True,
@@ -33,6 +34,7 @@ def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta
     """ Modelo de aprendizaje supervisado mediante red neuronal de tipo RBF.
         Ejecución de 5 semillas.
     """
+
     train_mses = np.empty(5)
     train_ccrs = np.empty(5)
     test_mses = np.empty(5)
@@ -89,8 +91,12 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta):
     train_inputs, train_outputs, test_inputs, test_outputs = lectura_datos(train_file, 
                                                                            test_file)
 
+    #Numero de patrones
+    num_patrones_train = train_inputs.shape[0]
+    num_patrones_test  = test_inputs.shape[0]
+
     #Número de RBFs
-    num_rbf = int(ratio_rbf * train_outputs.shape[0])
+    num_rbf = int(ratio_rbf * num_patrones_train)
     print("Número de RBFs utilizadas: %d" %(num_rbf))
 
     kmedias, distancias, centros = clustering(classification, train_inputs,
@@ -105,10 +111,9 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta):
     else:
         logreg = logreg_clasificacion(matriz_r, train_outputs, eta, l2)
 
-    """
-    TODO: Calcular las distancias de los centroides a los patrones de test
-          y la matriz R de test
-    """
+    # Distancia de patrones de test a centroides y matriz R
+    distancias_centroides_test = kmedias.transform(test_inputs)
+    matriz_r_test = calcular_matriz_r(distancias_centroides_test, radios)
 
     if not clasificacion:
         """
@@ -116,11 +121,20 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta):
               el MSE
         """
     else:
-        """
-        TODO: Obtener las predicciones de entrenamiento y de test y calcular
-              el CCR. Calcular también el MSE, comparando las probabilidades 
-              obtenidas y las probabilidades objetivo
-        """
+        # CCR en train y test
+        train_ccr = logreg.score(matriz_r, train_outputs)
+        test_ccr  = logreg.score(matriz_r_test, test_outputs)
+
+        # MSE en train y test
+        clases = logreg.classes_
+        train_probs = logreg.predict_proba(matriz_r)
+        train_outputs_binarized = label_binarize(train_outputs, clases)
+
+        test_probs  = logreg.predict_proba(matriz_r_test)
+        test_outputs_binarized  = label_binarize(test_outputs, clases)
+
+        train_mse = np.square(train_outputs_binarized-train_probs).sum(axis=1).sum() / num_patrones_train
+        test_mse  = np.square(test_outputs_binarized-test_probs).sum(axis=1).sum() / num_patrones_test
 
     return train_mse, test_mse, train_ccr, test_ccr
 
@@ -297,6 +311,7 @@ def logreg_clasificacion(matriz_r, train_outputs, eta, l2):
     else:
       regularizacion = 'l1'
 
+    # Parámetro C
     c = 1/eta
 
     lr = LogisticRegression(penalty=regularizacion, C=c, fit_intercept=False)
