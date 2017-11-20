@@ -16,6 +16,7 @@ from sklearn.model_selection import StratifiedShuffleSplit
 from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import label_binarize
+from sklearn.metrics import confusion_matrix
 
 @click.command()
 @click.option('--train_file', '-t', default=None, required=True,
@@ -45,13 +46,15 @@ def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta
         print("Semilla: %d" % s)
         print("-----------")     
         np.random.seed(s)
-        train_mses[s//10-1], test_mses[s//10-1], train_ccrs[s//10-1], test_ccrs[s//10-1] = \
+        train_mses[s//10-1], test_mses[s//10-1], train_ccrs[s//10-1], test_ccrs[s//10-1], cm = \
             entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta)
         print("MSE de entrenamiento: %f" % train_mses[s//10-1])
         print("MSE de test: %f" % test_mses[s//10-1])
         if classification:
             print("CCR de entrenamiento: %.2f%%" % train_ccrs[s//10-1])
             print("CCR de test: %.2f%%" % test_ccrs[s//10-1])
+            print("Matriz de confusión:")
+            print(cm)
     
     print("*********************")
     print("Resumen de resultados")
@@ -115,7 +118,7 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta):
     distancias_centroides_test = kmedias.transform(test_inputs)
     matriz_r_test = calcular_matriz_r(distancias_centroides_test, radios)
 
-    if not clasificacion:
+    if not classification:
         """
         TODO: Obtener las predicciones de entrenamiento y de test y calcular
               el MSE
@@ -136,7 +139,13 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta):
         train_mse = np.square(train_outputs_binarized-train_probs).sum(axis=1).sum() / num_patrones_train
         test_mse  = np.square(test_outputs_binarized-test_probs).sum(axis=1).sum() / num_patrones_test
 
-    return train_mse, test_mse, train_ccr, test_ccr
+        # Matriz de confusión
+        real_classes = test_outputs
+        predicted_classes = logreg.predict(matriz_r_test)
+        classes = logreg.classes_
+        cm = confusion_matrix(real_classes, predicted_classes, labels=classes)
+
+    return train_mse, test_mse, train_ccr, test_ccr, cm
 
     
 def lectura_datos(fichero_train, fichero_test):
