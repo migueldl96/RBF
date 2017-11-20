@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import click
 import random
+import pdb
 
 from sklearn.cluster import KMeans
 from sklearn.model_selection import StratifiedShuffleSplit
@@ -17,21 +18,24 @@ from sklearn.metrics.pairwise import pairwise_distances
 from sklearn.linear_model import LogisticRegression
 from sklearn.preprocessing import label_binarize
 from sklearn.metrics import confusion_matrix
+from sklearn.metrics import mean_squared_error
 
 @click.command()
 @click.option('--train_file', '-t', default=None, required=True,
               help=u'Fichero con los datos de entrenamiento.')
 @click.option('--test_file', '-T', default=None, required=False,
               help=u'Fichero con los datos de test. Si no se especifica, se usa el fichero de train.')
-@click.option('--classification', '-c', default=False, required=False,
+@click.option('--classification', '-c', is_flag=True,
               help=u'Utilizar si se trata de un problema de clasificación. Por defecto, se asume regresión.')
 @click.option('--ratio_rbf', '-r', default=0.1, required=False,
               help=u'Porcentaje de RBFs con respecto a los patrones de entrenamiento. Por defecto, 0.1')
-@click.option('--l2', '-l', default=False, required=False,
+@click.option('--l2', '-l', is_flag=True,
               help=u'Utilizar regularización l2. Por defecto se utiliza l1.')
 @click.option('--eta', '-e', default=0.01, required=False,
               help=u'Tasa de aprendizaje. Por defecto, 0.01')
-def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta):
+@click.option('--outs', '-o', default=1, required=True,
+              help=u'Numero de salidas del problema. Por defecto, 1.')
+def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta, outs):
     """ Modelo de aprendizaje supervisado mediante red neuronal de tipo RBF.
         Ejecución de 5 semillas.
     """
@@ -47,7 +51,7 @@ def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta
         print("-----------")     
         np.random.seed(s)
         train_mses[s//10-1], test_mses[s//10-1], train_ccrs[s//10-1], test_ccrs[s//10-1], cm = \
-            entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta)
+            entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outs)
         print("MSE de entrenamiento: %f" % train_mses[s//10-1])
         print("MSE de test: %f" % test_mses[s//10-1])
         if classification:
@@ -66,7 +70,7 @@ def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta
         print("CCR de test: %.2f%% +- %.2f%%" % (np.mean(test_ccrs), np.std(test_ccrs)))
 
 
-def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta):
+def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outs):
     """ Modelo de aprendizaje supervisado mediante red neuronal de tipo RBF.
         Una única ejecución.
         Recibe los siguientes parámetros:
@@ -92,7 +96,7 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta):
               En el caso de regresión, devolvemos un cero.
     """
     train_inputs, train_outputs, test_inputs, test_outputs = lectura_datos(train_file, 
-                                                                           test_file)
+                                                                           test_file, outs)
 
     #Numero de patrones
     num_patrones_train = train_inputs.shape[0]
@@ -119,14 +123,23 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta):
     matriz_r_test = calcular_matriz_r(distancias_centroides_test, radios)
 
     if not classification:
-        """
-        TODO: Obtener las predicciones de entrenamiento y de test y calcular
-              el MSE
-        """
+        # Predicciones del modelo
+        train_predictions = np.dot(matriz_r, coeficientes)
+        test_predictions  = np.dot(matriz_r_test, coeficientes)
+
+        # MSE de train y test
+        train_mse = mean_squared_error(train_outputs, train_predictions)
+        test_mse  = mean_squared_error(test_outputs, test_predictions)
+
+        train_ccr = 0
+        test_ccr  = 0
+        cm = 0
+        #pdb.set_trace()
+
     else:
         # CCR en train y test
-        train_ccr = logreg.score(matriz_r, train_outputs)
-        test_ccr  = logreg.score(matriz_r_test, test_outputs)
+        train_ccr = logreg.score(matriz_r, train_outputs) * 100
+        test_ccr  = logreg.score(matriz_r_test, test_outputs) * 100
 
         # MSE en train y test
         clases = logreg.classes_
@@ -136,8 +149,8 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta):
         test_probs  = logreg.predict_proba(matriz_r_test)
         test_outputs_binarized  = label_binarize(test_outputs, clases)
 
-        train_mse = np.square(train_outputs_binarized-train_probs).sum(axis=1).sum() / num_patrones_train
-        test_mse  = np.square(test_outputs_binarized-test_probs).sum(axis=1).sum() / num_patrones_test
+        train_mse = mean_squared_error(train_outputs_binarized, train_probs)
+        test_mse  = mean_squared_error(test_outputs_binarized, test_probs)
 
         # Matriz de confusión
         real_classes = test_outputs
@@ -148,7 +161,7 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta):
     return train_mse, test_mse, train_ccr, test_ccr, cm
 
     
-def lectura_datos(fichero_train, fichero_test):
+def lectura_datos(fichero_train, fichero_test, outs):
     """ Realiza la lectura de datos.
         Recibe los siguientes parámetros:
             - fichero_train: nombre del fichero de entrenamiento.
@@ -174,11 +187,11 @@ def lectura_datos(fichero_train, fichero_test):
       test_dataset = pd.read_csv(fichero_test)
 
     # Separamos las entradas y salidas de entrenamiento y test
-    train_inputs  = train_dataset.values[:,0:-1]
-    train_outputs = train_dataset.values[:,-1]
+    train_inputs  = train_dataset.values[:,0:-outs]
+    train_outputs = train_dataset.values[:,-outs]
 
-    test_inputs  = test_dataset.values[:,0:-1]
-    test_outputs = test_dataset.values[:,-1]
+    test_inputs  = test_dataset.values[:,0:-outs]
+    test_outputs = test_dataset.values[:,-outs]
 
     return train_inputs, train_outputs, test_inputs, test_outputs
 
@@ -232,7 +245,7 @@ def clustering(clasificacion, train_inputs, train_outputs, num_rbf):
       centros = train_inputs[random_rows]
 
     # Modelo
-    kmedias = KMeans(n_clusters=num_rbf, init=centros, n_init=1, max_iter=500)
+    kmedias = KMeans(n_clusters=num_rbf, init=centros, n_init=1, max_iter=500, n_jobs=-1)
 
     #Matriz de distancias
     distancias = kmedias.fit_transform(train_inputs)
@@ -249,7 +262,7 @@ def calcular_radios(centros, num_rbf):
     """
 
     # Matriz de distancias
-    distancias = pairwise_distances(centros, Y=None, metric="euclidean", n_jobs=1)
+    distancias = pairwise_distances(centros, Y=None, metric="euclidean", n_jobs=-1)
 
     # Radios = suma de filas / 2 * num_rbf-1
     radios = distancias.sum(axis=1)/(2 * (num_rbf-1))
@@ -292,7 +305,10 @@ def invertir_matriz_regresion(matriz_r, train_outputs):
               coeficiente de salida para cada rbf.
     """
 
-    #TODO: Completar el código de la función
+    # Pseudo-inversa
+    pseudoinv_matriz_r = np.linalg.pinv(matriz_r)
+    coeficientes = np.dot(pseudoinv_matriz_r, train_outputs)
+
     return coeficientes
 
 def logreg_clasificacion(matriz_r, train_outputs, eta, l2):
