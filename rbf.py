@@ -238,17 +238,16 @@ def clustering(clasificacion, train_inputs, train_outputs, num_rbf):
 
     # Centroides de las RBFs
     if clasificacion:
-      centros = inicializar_centroides_clas(train_inputs, train_outputs, num_rbf)
+      centros_iniciales = inicializar_centroides_clas(train_inputs, train_outputs, num_rbf)
+      kmedias = KMeans(n_clusters=num_rbf, init=centros_iniciales, n_init=1, max_iter=500, n_jobs=-1)
     else:
-      patrones = train_inputs.shape[0]
-      random_rows = np.random.randint(low=0, high=patrones, size=num_rbf)
-      centros = train_inputs[random_rows]
+      kmedias = KMeans(n_clusters=num_rbf, init='random', n_init=1, max_iter=500, n_jobs=-1)
 
-    # Modelo
-    kmedias = KMeans(n_clusters=num_rbf, init=centros, n_init=1, max_iter=500, n_jobs=-1)
-
-    #Matriz de distancias
+    # Matriz de distancias
     distancias = kmedias.fit_transform(train_inputs)
+
+    # Centros
+    centros = kmedias.cluster_centers_
 
     return kmedias, distancias, centros
 
