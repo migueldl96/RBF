@@ -11,6 +11,7 @@ import pandas as pd
 import click
 import random
 import pdb
+import time
 
 from sklearn.cluster import KMeans
 from sklearn.model_selection import StratifiedShuffleSplit
@@ -44,14 +45,20 @@ def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta
     train_ccrs = np.empty(5)
     test_mses = np.empty(5)
     test_ccrs = np.empty(5)
+    times = np.empty(5)
 
     for s in range(10,60,10):   
         print("-----------")
         print("Semilla: %d" % s)
         print("-----------")     
         np.random.seed(s)
+
+        start = time.time()
         train_mses[s//10-1], test_mses[s//10-1], train_ccrs[s//10-1], test_ccrs[s//10-1], cm = \
             entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outs)
+        end   = time.time()
+        times[s//10-1] = end-start
+        print("Tiempo de ejecución: %f" % times[s//10-1])
         print("MSE de entrenamiento: %f" % train_mses[s//10-1])
         print("MSE de test: %f" % test_mses[s//10-1])
         if classification:
@@ -63,6 +70,7 @@ def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta
     print("*********************")
     print("Resumen de resultados")
     print("*********************")
+    print("Tiempo medio: %f" % np.mean(times))
     print("MSE de entrenamiento: %f +- %f" % (np.mean(train_mses), np.std(train_mses)))
     print("MSE de test: %f +- %f" % (np.mean(test_mses), np.std(test_mses)))
     if classification:
@@ -140,7 +148,8 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outs
         # CCR en train y test
         train_ccr = logreg.score(matriz_r, train_outputs) * 100
         test_ccr  = logreg.score(matriz_r_test, test_outputs) * 100
-
+        print(matriz_r.shape)
+        quit()
         # MSE en train y test
         clases = logreg.classes_
         train_probs = logreg.predict_proba(matriz_r)
