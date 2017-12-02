@@ -66,8 +66,8 @@ def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta
             print("CCR de entrenamiento: %.2f%%" % train_ccrs[s//10-1])
             print("CCR de test: %.2f%%" % test_ccrs[s//10-1])
             print("Matriz de confusión:")
-            print("Numero de coeficientes de la regresión logística: %.2f" % coefs[s//10-1])
             print(cm)
+            print("Numero de coeficientes de la regresión logística: %.2f" % coefs[s//10-1])
     
     print("*********************")
     print("Resumen de resultados")
@@ -157,6 +157,12 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outs
         train_ccr = logreg.score(matriz_r, train_outputs) * 100
         test_ccr  = logreg.score(matriz_r_test, test_outputs) * 100
 
+        # Patrones mal clasificados
+        # predicted_test_classes = logreg.predict(matriz_r_test)
+        # classification_mask = predicted_test_classes == test_outputs
+        # missclassified_indexes = np.where(classification_mask == False)
+        # print(zip(missclassified_indexes[0], predicted_test_classes[missclassified_indexes]))
+
         # MSE en train y test
         clases = logreg.classes_
         train_probs = logreg.predict_proba(matriz_r)
@@ -174,6 +180,7 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outs
         classes = logreg.classes_
         cm = confusion_matrix(real_classes, predicted_classes, labels=classes)
         coefs = len(logreg.coef_[np.where(np.absolute(logreg.coef_) > 1e-5)])
+
     return train_mse, test_mse, train_ccr, test_ccr, cm, coefs
 
     
@@ -356,7 +363,6 @@ def logreg_clasificacion(matriz_r, train_outputs, eta, l2):
 
     lr = LogisticRegression(penalty=regularizacion, C=c, fit_intercept=False)
     logreg = lr.fit(matriz_r, train_outputs)
-
     return logreg
 
 
