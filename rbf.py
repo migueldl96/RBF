@@ -46,6 +46,7 @@ def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta
     test_mses = np.empty(5)
     test_ccrs = np.empty(5)
     times = np.empty(5)
+    coefs = np.empty(5)
 
     for s in range(10,60,10):   
         print("-----------")
@@ -54,7 +55,7 @@ def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta
         np.random.seed(s)
 
         start = time.time()
-        train_mses[s//10-1], test_mses[s//10-1], train_ccrs[s//10-1], test_ccrs[s//10-1], cm = \
+        train_mses[s//10-1], test_mses[s//10-1], train_ccrs[s//10-1], test_ccrs[s//10-1], cm, coefs[s//10-1] = \
             entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outs)
         end   = time.time()
         times[s//10-1] = end-start
@@ -65,6 +66,7 @@ def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta
             print("CCR de entrenamiento: %.2f%%" % train_ccrs[s//10-1])
             print("CCR de test: %.2f%%" % test_ccrs[s//10-1])
             print("Matriz de confusión:")
+            print("Numero de coeficientes de la regresión logística: %.2f" % coefs[s//10-1])
             print(cm)
     
     print("*********************")
@@ -73,9 +75,10 @@ def entrenar_rbf_total(train_file, test_file, classification, ratio_rbf, l2, eta
     print("Tiempo medio: %f" % np.mean(times))
     print("MSE de entrenamiento: %f +- %f" % (np.mean(train_mses), np.std(train_mses)))
     print("MSE de test: %f +- %f" % (np.mean(test_mses), np.std(test_mses)))
-    if classification:
-        print("CCR de entrenamiento: %.2f%% +- %.2f%%" % (np.mean(train_ccrs), np.std(train_ccrs)))
-        print("CCR de test: %.2f%% +- %.2f%%" % (np.mean(test_ccrs), np.std(test_ccrs)))
+    #if classification:
+    print("CCR de entrenamiento: %.2f%% +- %.2f%%" % (np.mean(train_ccrs), np.std(train_ccrs)))
+    print("CCR de test: %.2f%% +- %.2f%%" % (np.mean(test_ccrs), np.std(test_ccrs)))
+    print("Numero de coeficientes medio: %.2f" % np.mean(coefs))
 
 
 def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outs):
@@ -139,17 +142,21 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outs
         train_mse = mean_squared_error(train_outputs, train_predictions)
         test_mse  = mean_squared_error(test_outputs, test_predictions)
 
-        train_ccr = 0
-        test_ccr  = 0
+        # Clasificación desde regresión
+        predicted_train_classes = np.round(train_predictions)
+        predicted_test_classes = np.round(test_predictions)
+        train_ccr = (np.sum(predicted_train_classes == train_outputs) / np.float(num_patrones_train)) * 100
+        test_ccr = (np.sum(predicted_test_classes == test_outputs) / np.float(num_patrones_test)) * 100
+
         cm = 0
+        coefs = 0
         #pdb.set_trace()
 
     else:
         # CCR en train y test
         train_ccr = logreg.score(matriz_r, train_outputs) * 100
         test_ccr  = logreg.score(matriz_r_test, test_outputs) * 100
-        print(matriz_r.shape)
-        quit()
+
         # MSE en train y test
         clases = logreg.classes_
         train_probs = logreg.predict_proba(matriz_r)
@@ -166,8 +173,8 @@ def entrenar_rbf(train_file, test_file, classification, ratio_rbf, l2, eta, outs
         predicted_classes = logreg.predict(matriz_r_test)
         classes = logreg.classes_
         cm = confusion_matrix(real_classes, predicted_classes, labels=classes)
-
-    return train_mse, test_mse, train_ccr, test_ccr, cm
+        coefs = len(logreg.coef_[np.where(np.absolute(logreg.coef_) > 1e-5)])
+    return train_mse, test_mse, train_ccr, test_ccr, cm, coefs
 
     
 def lectura_datos(fichero_train, fichero_test, outs):
